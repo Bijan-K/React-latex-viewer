@@ -1,25 +1,40 @@
 import React, { useState, useRef } from 'react';
-import { X, Minimize, Maximize, Edit } from 'lucide-react';
+import {
+    X,
+    Minimize,
+    Maximize,
+    Edit,
+    PanelRightClose,
+    PanelRight,
+} from 'lucide-react';
 
 const App = () => {
     const [input, setInput] = useState('');
     const [history, setHistory] = useState([]);
     const [windows, setWindows] = useState([]);
     const [dragActive, setDragActive] = useState(null);
+    const [showHistory, setShowHistory] = useState(true);
+    const [editingHistory, setEditingHistory] = useState(null);
     const dragRef = useRef(null);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
     // Create new window
-    const createWindow = () => {
-        if (!input) return;
+    const createWindow = (content = input) => {
+        if (!content) return;
         const newWindow = {
             id: Date.now(),
-            content: input,
-            position: { x: 50, y: 50 },
+            content,
+            position: {
+                x: 50 + windows.length * 20,
+                y: 50 + windows.length * 20,
+            },
             minimized: false,
         };
         setWindows([...windows, newWindow]);
-        setHistory([...history, input]);
+        if (content === input) {
+            setHistory([...history, input]);
+            setInput('');
+        }
     };
 
     // Handle window dragging
@@ -70,6 +85,18 @@ const App = () => {
         );
     };
 
+    // Edit history item
+    const startEditingHistory = (index) => {
+        setEditingHistory(index);
+    };
+
+    const saveHistoryEdit = (index, newValue) => {
+        const newHistory = [...history];
+        newHistory[index] = newValue;
+        setHistory(newHistory);
+        setEditingHistory(null);
+    };
+
     return (
         <div
             className="h-screen flex flex-col"
@@ -87,10 +114,16 @@ const App = () => {
                         placeholder="Enter LaTeX..."
                     />
                     <button
-                        onClick={createWindow}
+                        onClick={() => createWindow()}
                         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                     >
                         Create Window
+                    </button>
+                    <button
+                        onClick={() => setShowHistory(!showHistory)}
+                        className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                    >
+                        {showHistory ? <PanelRightClose /> : <PanelRight />}
                     </button>
                 </div>
             </div>
@@ -104,14 +137,60 @@ const App = () => {
                 </div>
 
                 {/* Right History Sidebar */}
-                <div className="w-64 border-l p-4 bg-white">
-                    <h2 className="font-bold mb-4">History</h2>
-                    {history.map((item, index) => (
-                        <div key={index} className="p-2 border-b">
-                            {item}
-                        </div>
-                    ))}
-                </div>
+                {showHistory && (
+                    <div className="w-64 border-l p-4 bg-white">
+                        <h2 className="font-bold mb-4">History</h2>
+                        {history.map((item, index) => (
+                            <div key={index} className="p-2 border-b">
+                                {editingHistory === index ? (
+                                    <div className="flex flex-col gap-2">
+                                        <input
+                                            type="text"
+                                            value={item}
+                                            onChange={(e) =>
+                                                saveHistoryEdit(
+                                                    index,
+                                                    e.target.value
+                                                )
+                                            }
+                                            className="p-1 border rounded"
+                                            autoFocus
+                                            onBlur={() =>
+                                                setEditingHistory(null)
+                                            }
+                                            onKeyPress={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    saveHistoryEdit(
+                                                        index,
+                                                        e.target.value
+                                                    );
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-between">
+                                        <span>{item}</span>
+                                        <div className="flex gap-2">
+                                            <Edit
+                                                className="w-4 h-4 cursor-pointer text-blue-500"
+                                                onClick={() =>
+                                                    startEditingHistory(index)
+                                                }
+                                            />
+                                            <Maximize
+                                                className="w-4 h-4 cursor-pointer text-green-500"
+                                                onClick={() =>
+                                                    createWindow(item)
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Floating Windows */}
                 {windows.map((window) => (
