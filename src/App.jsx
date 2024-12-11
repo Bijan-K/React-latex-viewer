@@ -10,6 +10,26 @@ import {
     Sun,
     Moon,
 } from 'lucide-react';
+import katex from 'katex';
+
+const LatexRenderer = ({ latex }) => {
+    const containerRef = useRef(null);
+
+    React.useEffect(() => {
+        if (containerRef.current) {
+            try {
+                katex.render(latex, containerRef.current, {
+                    throwOnError: false,
+                    displayMode: true,
+                });
+            } catch (error) {
+                containerRef.current.innerHTML = `<span class="text-red-500">Error: ${error.message}</span>`;
+            }
+        }
+    }, [latex]);
+
+    return <div ref={containerRef} />;
+};
 
 const App = () => {
     const [input, setInput] = useState('');
@@ -18,17 +38,21 @@ const App = () => {
     const [dragActive, setDragActive] = useState(null);
     const [showHistory, setShowHistory] = useState(true);
     const [isLatexValid, setIsLatexValid] = useState(true);
+    const [latexError, setLatexError] = useState(null);
     const [isDarkMode, setIsDarkMode] = useState(false);
     const dragRef = useRef(null);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-    // Simple LaTeX validation (you'd want to replace this with a proper LaTeX parser)
+    // Improved LaTeX validation using KaTeX
     const validateLatex = (text) => {
-        // This is a very basic validation - replace with proper LaTeX validation
-        const bracketCount =
-            (text.match(/\{/g) || []).length ===
-            (text.match(/\}/g) || []).length;
-        return bracketCount;
+        try {
+            katex.__parse(text);
+            setLatexError(null);
+            return true;
+        } catch (error) {
+            setLatexError(error.message);
+            return false;
+        }
     };
 
     // Create new window
@@ -47,6 +71,7 @@ const App = () => {
         if (content === input) {
             setHistory([...history, input]);
             setInput('');
+            setLatexError(null);
         }
     };
 
@@ -108,6 +133,13 @@ const App = () => {
     // Edit history item
     const editHistoryItem = (content) => {
         setInput(content);
+        validateLatex(content);
+    };
+
+    // Handle input change
+    const handleInputChange = (text) => {
+        setInput(text);
+        setIsLatexValid(validateLatex(text));
     };
 
     return (
@@ -128,10 +160,7 @@ const App = () => {
                     <input
                         type="text"
                         value={input}
-                        onChange={(e) => {
-                            setInput(e.target.value);
-                            setIsLatexValid(validateLatex(e.target.value));
-                        }}
+                        onChange={(e) => handleInputChange(e.target.value)}
                         className={`flex-1 p-2 border rounded ${
                             isDarkMode
                                 ? 'bg-gray-800 border-gray-700'
@@ -142,6 +171,7 @@ const App = () => {
                     <button
                         onClick={() => createWindow()}
                         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        disabled={!isLatexValid || !input}
                     >
                         Create Window
                     </button>
@@ -166,6 +196,11 @@ const App = () => {
                         {isDarkMode ? <Sun /> : <Moon />}
                     </button>
                 </div>
+                {latexError && (
+                    <div className="mt-2 text-red-500 text-sm">
+                        {latexError}
+                    </div>
+                )}
             </div>
 
             {/* Main Content Area */}
@@ -184,7 +219,7 @@ const App = () => {
                                 : 'bg-red-50 border-red-200'
                         } ${isDarkMode ? 'bg-opacity-10' : ''}`}
                     >
-                        {input}
+                        {input && <LatexRenderer latex={input} />}
                     </div>
                 </div>
 
@@ -311,7 +346,9 @@ const App = () => {
                             </div>
 
                             {/* Window Content */}
-                            <div className="p-4">{window.content}</div>
+                            <div className="p-4">
+                                <LatexRenderer latex={window.content} />
+                            </div>
                         </div>
                     ))}
             </div>
