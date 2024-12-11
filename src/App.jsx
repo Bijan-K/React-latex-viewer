@@ -39,8 +39,23 @@ const App = () => {
     const [showHistory, setShowHistory] = useState(true);
     const [isLatexValid, setIsLatexValid] = useState(true);
     const [latexError, setLatexError] = useState(null);
-    const [isDarkMode, setIsDarkMode] = useState(false);
-    const dragRef = useRef(null);
+
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme !== null) {
+            return savedTheme === 'dark';
+        }
+        // Check system preference if no saved theme
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+
+    const toggleTheme = () => {
+        const newTheme = !isDarkMode;
+        setIsDarkMode(newTheme);
+        // Save to localStorage
+        localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+    };
+
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
     // Improved LaTeX validation using KaTeX
@@ -186,7 +201,7 @@ const App = () => {
                         {showHistory ? <PanelRightClose /> : <PanelRight />}
                     </button>
                     <button
-                        onClick={() => setIsDarkMode(!isDarkMode)}
+                        onClick={toggleTheme}
                         className={`px-4 py-2 rounded ${
                             isDarkMode
                                 ? 'bg-gray-700 hover:bg-gray-600'
