@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     X,
     Minimize,
@@ -9,6 +9,8 @@ import {
     Trash2,
     Sun,
     Moon,
+    Save,
+    Download,
 } from 'lucide-react';
 import katex from 'katex';
 
@@ -33,32 +35,63 @@ const LatexRenderer = ({ latex }) => {
 
 const App = () => {
     const [input, setInput] = useState('');
-    const [history, setHistory] = useState([]);
+    const [history, setHistory] = useState(() => {
+        // Initialize history from localStorage if available
+        const savedHistory = localStorage.getItem('latexHistory');
+        return savedHistory ? JSON.parse(savedHistory) : [];
+    });
     const [windows, setWindows] = useState([]);
     const [dragActive, setDragActive] = useState(null);
     const [showHistory, setShowHistory] = useState(true);
     const [isLatexValid, setIsLatexValid] = useState(true);
     const [latexError, setLatexError] = useState(null);
+    const [autoSave, setAutoSave] = useState(() => {
+        return localStorage.getItem('autoSave') === 'true';
+    });
 
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme !== null) {
             return savedTheme === 'dark';
         }
-        // Check system preference if no saved theme
         return window.matchMedia('(prefers-color-scheme: dark)').matches;
     });
+
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+    // Effect to handle autosave
+    useEffect(() => {
+        if (autoSave) {
+            localStorage.setItem('latexHistory', JSON.stringify(history));
+        }
+    }, [history, autoSave]);
 
     const toggleTheme = () => {
         const newTheme = !isDarkMode;
         setIsDarkMode(newTheme);
-        // Save to localStorage
         localStorage.setItem('theme', newTheme ? 'dark' : 'light');
     };
 
-    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const toggleAutoSave = () => {
+        const newAutoSave = !autoSave;
+        setAutoSave(newAutoSave);
+        localStorage.setItem('autoSave', newAutoSave);
+        if (newAutoSave) {
+            localStorage.setItem('latexHistory', JSON.stringify(history));
+        }
+    };
 
-    // Improved LaTeX validation using KaTeX
+    const manualSave = () => {
+        localStorage.setItem('latexHistory', JSON.stringify(history));
+    };
+
+    const loadFromStorage = () => {
+        const savedHistory = localStorage.getItem('latexHistory');
+        if (savedHistory) {
+            setHistory(JSON.parse(savedHistory));
+        }
+    };
+
     const validateLatex = (text) => {
         try {
             katex.__parse(text);
@@ -70,7 +103,6 @@ const App = () => {
         }
     };
 
-    // Create new window
     const createWindow = (content = input) => {
         if (!content) return;
         const newWindow = {
@@ -90,7 +122,6 @@ const App = () => {
         }
     };
 
-    // Handle window dragging
     const handleMouseDown = (e, id) => {
         const window = windows.find((w) => w.id === id);
         if (window) {
@@ -126,7 +157,6 @@ const App = () => {
         setDragActive(null);
     };
 
-    // Toggle window minimize
     const toggleMinimize = (id) => {
         setWindows(
             windows.map((window) => {
@@ -138,20 +168,17 @@ const App = () => {
         );
     };
 
-    // Delete history item
     const deleteHistoryItem = (index) => {
         const newHistory = [...history];
         newHistory.splice(index, 1);
         setHistory(newHistory);
     };
 
-    // Edit history item
     const editHistoryItem = (content) => {
         setInput(content);
         validateLatex(content);
     };
 
-    // Handle input change
     const handleInputChange = (text) => {
         setInput(text);
         setIsLatexValid(validateLatex(text));
@@ -189,6 +216,38 @@ const App = () => {
                         disabled={!isLatexValid || !input}
                     >
                         Create Window
+                    </button>
+                    <button
+                        onClick={toggleAutoSave}
+                        className={`px-4 py-2 rounded ${
+                            autoSave
+                                ? 'bg-green-500'
+                                : isDarkMode
+                                ? 'bg-gray-700'
+                                : 'bg-gray-500'
+                        } hover:opacity-80 text-white flex items-center gap-1`}
+                        title={
+                            autoSave ? 'Disable autosave' : 'Enable autosave'
+                        }
+                    >
+                        <Save className="w-4 h-4" />
+                        {autoSave ? 'Auto' : 'Manual'}
+                    </button>
+                    {!autoSave && (
+                        <button
+                            onClick={manualSave}
+                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                            title="Save history to storage"
+                        >
+                            <Save className="w-4 h-4" />
+                        </button>
+                    )}
+                    <button
+                        onClick={loadFromStorage}
+                        className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+                        title="Load history from storage"
+                    >
+                        <Download className="w-4 h-4" />
                     </button>
                     <button
                         onClick={() => setShowHistory(!showHistory)}
